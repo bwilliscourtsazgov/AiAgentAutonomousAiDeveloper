@@ -1,0 +1,9 @@
+﻿from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass(slots=True)
+class InstructionTask:
+    name: str
+    source_path: Path
+    processing_path: Path

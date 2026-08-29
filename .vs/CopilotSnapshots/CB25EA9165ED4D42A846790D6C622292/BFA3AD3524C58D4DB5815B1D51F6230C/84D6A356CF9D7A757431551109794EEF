@@ -1,0 +1,10 @@
+﻿from pathlib import Path
+
+from src.aia_coder.markdown_parser import read_instruction
+
+
+def test_read_instruction(tmp_path: Path) -> None:
+    file_path = tmp_path / "task.md"
+    file_path.write_text("# Task", encoding="utf-8")
+
+    assert read_instruction(file_path) == "# Task"

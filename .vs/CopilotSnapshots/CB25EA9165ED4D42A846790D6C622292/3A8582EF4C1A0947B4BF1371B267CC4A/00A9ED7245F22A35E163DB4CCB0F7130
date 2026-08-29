@@ -1,0 +1,45 @@
+﻿from dataclasses import dataclass
+from pathlib import Path
+
+from src.aia_coder.markdown_parser import read_instruction
+from src.aia_coder.qa_instruction_writer import write_qa_instruction
+from src.common.config import AgentPaths
+from src.common.fs_utils import ensure_agent_dirs, move_to_dir
+
+
+@dataclass(slots=True)
+class ProcessResult:
+    instruction_name: str
+    succeeded: bool
+    message: str
+
+
+def process_instruction(markdown_file: Path, qa_output: Path) -> None:
+    instruction = read_instruction(markdown_file)
+    qa_content = f"# QA Instructions\n\nValidate implementation for: {markdown_file.name}\n\n{instruction[:400]}"
+    write_qa_instruction(qa_output, qa_content)
+
+
+def process_instruction_file(instruction_in_file: Path, coder_paths: AgentPaths, qa_in_dir: Path) -> ProcessResult:
+    ensure_agent_dirs(
+        coder_paths.in_dir,
+        coder_paths.processing_dir,
+        coder_paths.success_dir,
+        coder_paths.failure_dir,
+        qa_in_dir,
+    )
+
+    processing_file = move_to_dir(instruction_in_file, coder_paths.processing_dir)
+
+    try:
+        qa_output = qa_in_dir / f"{processing_file.stem}_qa.md"
+        process_instruction(processing_file, qa_output)
+        move_to_dir(processing_file, coder_paths.success_dir)
+        return ProcessResult(processing_file.name, True, "Processed successfully")
+    except Exception as exc:
+        if processing_file.exists():
+            move_to_dir(processing_file, coder_paths.failure_dir)
+
+        failure_note = coder_paths.failure_dir / f"{processing_file.stem}.error.txt"
+        failure_note.write_text(str(exc), encoding="utf-8")
+        return ProcessResult(processing_file.name, False, str(exc))

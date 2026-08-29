@@ -1,0 +1,12 @@
+﻿from pathlib import Path
+
+from src.common.git_utils import run_git
+
+
+def test_run_git_fails_outside_repo(tmp_path: Path) -> None:
+    try:
+        run_git(Path(tmp_path), "status")
+    except Exception:
+        assert True
+    else:
+        assert False

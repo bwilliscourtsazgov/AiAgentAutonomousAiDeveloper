@@ -1,0 +1,10 @@
+﻿from pathlib import Path
+
+from src.aia_coder.markdown_parser import read_instruction
+from src.aia_coder.qa_instruction_writer import write_qa_instruction
+
+
+def process_instruction(markdown_file: Path, qa_output: Path) -> None:
+    instruction = read_instruction(markdown_file)
+    qa_content = f"# QA Instructions\n\nValidate implementation for: {markdown_file.name}\n\n{instruction[:400]}"
+    write_qa_instruction(qa_output, qa_content)

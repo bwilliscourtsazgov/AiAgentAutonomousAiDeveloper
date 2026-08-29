@@ -1,0 +1,14 @@
+﻿from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass(slots=True)
+class AgentPaths:
+    in_dir: Path
+    processing_dir: Path
+    success_dir: Path
+    failure_dir: Path
+
+
+def default_ai_root() -> Path:
+    return Path.home() / "AI"

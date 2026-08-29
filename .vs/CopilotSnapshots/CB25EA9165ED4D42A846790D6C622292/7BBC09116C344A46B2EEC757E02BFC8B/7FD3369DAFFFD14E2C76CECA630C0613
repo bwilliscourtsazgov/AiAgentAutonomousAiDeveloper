@@ -1,0 +1,5 @@
+﻿from pathlib import Path
+
+
+def read_instruction(markdown_file: Path) -> str:
+    return markdown_file.read_text(encoding="utf-8")

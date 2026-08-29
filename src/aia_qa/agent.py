@@ -1,0 +1,13 @@
+from pathlib import Path
+
+from src.aia_qa.watcher import list_qa_files
+
+
+def run(in_dir: Path) -> list[Path]:
+    return list_qa_files(in_dir)
+
+
+if __name__ == "__main__":
+    files = run(Path.home() / "AI" / "AIAgentQA" / "IN")
+    for file in files:
+        print(file)

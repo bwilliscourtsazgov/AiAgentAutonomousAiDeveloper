@@ -1,0 +1,12 @@
+[Unit]
+Description=AI Agent QA Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/source/repos/AiAgentAutonomousAiDeveloper
+ExecStart=/usr/bin/bash scripts/run_qa_agent.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

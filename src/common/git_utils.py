@@ -1,0 +1,92 @@
+from pathlib import Path
+import subprocess
+from datetime import datetime, timezone
+import re
+
+
+def run_git(repo_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo_path,
+        text=True,
+        check=True,
+        capture_output=True,
+    )
+
+
+def run_git_global(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        text=True,
+        check=True,
+        capture_output=True,
+    )
+
+
+def slugify_instruction_name(instruction_name: str) -> str:
+    stem = Path(instruction_name).stem.lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", stem).strip("-")
+    return slug or "task"
+
+
+def build_coder_branch_name(instruction_name: str, now: datetime | None = None) -> str:
+    timestamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%d%H%M%S")
+    slug = slugify_instruction_name(instruction_name)
+    return f"agent/coder/{timestamp}-{slug}"
+
+
+def build_coder_commit_message(instruction_name: str) -> str:
+    return f"feat: process instruction {instruction_name}"
+
+
+def checkout_new_branch(repo_path: Path, branch_name: str) -> None:
+    run_git(repo_path, "checkout", "-b", branch_name)
+
+
+def commit_all_changes(repo_path: Path, message: str) -> None:
+    run_git(repo_path, "add", "-A")
+    run_git(repo_path, "commit", "-m", message)
+
+
+def push_branch(repo_path: Path, branch_name: str) -> None:
+    run_git(repo_path, "push", "-u", "origin", branch_name)
+
+
+def is_git_repository(path: Path) -> bool:
+    return (path / ".git").exists()
+
+
+def ensure_repo_ready(local_path: Path, repo_url: str | None = None, branch: str | None = None) -> None:
+    if not local_path.exists():
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        if repo_url:
+            run_git_global("clone", repo_url, str(local_path))
+        else:
+            local_path.mkdir(parents=True, exist_ok=True)
+            run_git_global("init", cwd=local_path)
+
+    if not is_git_repository(local_path):
+        run_git_global("init", cwd=local_path)
+
+    if repo_url and _has_remote(local_path, "origin"):
+        run_git(local_path, "pull", "origin", branch or "main")
+
+    if branch:
+        checkout_or_create_branch(local_path, branch)
+
+
+def checkout_or_create_branch(repo_path: Path, branch_name: str) -> None:
+    try:
+        run_git(repo_path, "checkout", branch_name)
+    except subprocess.CalledProcessError:
+        run_git(repo_path, "checkout", "-b", branch_name)
+
+
+def _has_remote(repo_path: Path, remote_name: str) -> bool:
+    try:
+        result = run_git(repo_path, "remote")
+    except subprocess.CalledProcessError:
+        return False
+    remotes = {line.strip() for line in result.stdout.splitlines() if line.strip()}
+    return remote_name in remotes

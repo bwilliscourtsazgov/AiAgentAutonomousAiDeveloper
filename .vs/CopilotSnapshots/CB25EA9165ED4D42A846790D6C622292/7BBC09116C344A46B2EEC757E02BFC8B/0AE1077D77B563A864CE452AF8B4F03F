@@ -1,0 +1,28 @@
+﻿from pathlib import Path
+
+import src.aia_coder.workflow as workflow
+from src.common.config import AgentPaths
+
+
+def test_process_instruction_file_moves_and_writes_outputs(tmp_path: Path, monkeypatch) -> None:
+    coder_paths = AgentPaths(
+        in_dir=tmp_path / "AIAgentCoder" / "IN",
+        processing_dir=tmp_path / "AIAgentCoder" / "PROCESSING",
+        success_dir=tmp_path / "AIAgentCoder" / "SUCCESS",
+        failure_dir=tmp_path / "AIAgentCoder" / "FAILURE",
+    )
+    qa_in_dir = tmp_path / "AIAgentQA" / "IN"
+
+    coder_paths.in_dir.mkdir(parents=True, exist_ok=True)
+    instruction = coder_paths.in_dir / "feature.md"
+    instruction.write_text("Implement feature", encoding="utf-8")
+
+    monkeypatch.setattr(workflow, "checkout_new_branch", lambda *_: None)
+    monkeypatch.setattr(workflow, "commit_all_changes", lambda *_: None)
+    monkeypatch.setattr(workflow, "push_branch", lambda *_: None)
+
+    result = workflow.process_instruction_file(instruction, coder_paths, qa_in_dir, tmp_path)
+
+    assert result.succeeded is True
+    assert (coder_paths.success_dir / "feature.md").exists()
+    assert (qa_in_dir / "feature_qa.md").exists()

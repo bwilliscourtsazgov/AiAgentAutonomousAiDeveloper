@@ -1,0 +1,9 @@
+﻿from pathlib import Path
+
+from src.common.fs_utils import ensure_dir
+
+
+def test_ensure_dir_creates_path(tmp_path: Path) -> None:
+    target = tmp_path / "a" / "b"
+    ensure_dir(target)
+    assert target.exists()

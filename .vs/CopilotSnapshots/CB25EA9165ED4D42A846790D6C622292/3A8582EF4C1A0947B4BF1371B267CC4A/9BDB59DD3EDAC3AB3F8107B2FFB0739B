@@ -1,0 +1,29 @@
+﻿from pathlib import Path
+import time
+
+from src.aia_coder.watcher import list_instruction_files
+from src.aia_coder.workflow import ProcessResult, process_instruction_file
+from src.common.config import coder_paths, qa_paths
+
+
+def run_once(ai_root: Path | None = None) -> list[ProcessResult]:
+    coder_runtime = coder_paths(ai_root)
+    qa_runtime = qa_paths(ai_root)
+
+    instruction_files = list_instruction_files(coder_runtime.in_dir)
+    results: list[ProcessResult] = []
+    for instruction_file in instruction_files:
+        result = process_instruction_file(instruction_file, coder_runtime, qa_runtime.in_dir)
+        results.append(result)
+
+    return results
+
+
+def run_forever(ai_root: Path | None = None, poll_interval_seconds: int = 5) -> None:
+    while True:
+        run_once(ai_root)
+        time.sleep(poll_interval_seconds)
+
+
+if __name__ == "__main__":
+    run_forever(Path.home() / "AI")
