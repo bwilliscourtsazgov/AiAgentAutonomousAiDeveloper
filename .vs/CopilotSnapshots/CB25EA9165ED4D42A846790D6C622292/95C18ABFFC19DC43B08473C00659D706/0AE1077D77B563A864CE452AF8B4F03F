@@ -1,5 +1,4 @@
-import json
-from pathlib import Path
+﻿from pathlib import Path
 
 import src.aia_coder.workflow as workflow
 from src.common.config import AgentPaths
@@ -35,14 +34,3 @@ def test_process_instruction_file_moves_and_writes_outputs(tmp_path: Path, monke
     assert result.succeeded is True
     assert (coder_paths.success_dir / "feature.md").exists()
     assert (qa_in_dir / "feature_qa.md").exists()
-
-    html_file = next((tmp_path / "AIAgentCoder" / "Log").glob("Log_*.html"))
-    html = html_file.read_text(encoding="utf-8")
-    assert ">IN</td>" in html
-    assert ">PROCESSING</td>" in html
-    assert ">QA</td>" in html
-    assert ">SUCCESS</td>" in html
-
-    json_log = tmp_path / "Logs" / "agent-history.log"
-    entries = [json.loads(line) for line in json_log.read_text(encoding="utf-8").splitlines()]
-    assert {entry["stage"] for entry in entries} >= {"IN", "PROCESSING", "SUCCESS"}

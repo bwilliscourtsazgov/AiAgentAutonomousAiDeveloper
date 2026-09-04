@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+﻿from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -39,7 +39,3 @@ def coder_paths(ai_root: Path | None = None) -> AgentPaths:
 
 def qa_paths(ai_root: Path | None = None) -> AgentPaths:
     return agent_paths("AIAgentQA", ai_root)
-
-
-def ai_root_from_agent_paths(paths: AgentPaths) -> Path:
-    return paths.in_dir.parents[1]

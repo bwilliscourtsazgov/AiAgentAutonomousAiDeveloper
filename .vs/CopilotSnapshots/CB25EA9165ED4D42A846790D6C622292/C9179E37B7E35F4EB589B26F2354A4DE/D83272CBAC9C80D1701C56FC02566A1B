@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+﻿from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -12,14 +12,6 @@ class AgentPaths:
 
 def default_ai_root() -> Path:
     return Path.home() / "AI"
-
-
-def logs_dir(ai_root: Path | None = None) -> Path:
-    return (ai_root or default_ai_root()) / "Logs"
-
-
-def coder_log_dir(ai_root: Path | None = None) -> Path:
-    return (ai_root or default_ai_root()) / "AIAgentCoder" / "Log"
 
 
 def agent_paths(agent_folder: str, ai_root: Path | None = None) -> AgentPaths:
@@ -39,7 +31,3 @@ def coder_paths(ai_root: Path | None = None) -> AgentPaths:
 
 def qa_paths(ai_root: Path | None = None) -> AgentPaths:
     return agent_paths("AIAgentQA", ai_root)
-
-
-def ai_root_from_agent_paths(paths: AgentPaths) -> Path:
-    return paths.in_dir.parents[1]

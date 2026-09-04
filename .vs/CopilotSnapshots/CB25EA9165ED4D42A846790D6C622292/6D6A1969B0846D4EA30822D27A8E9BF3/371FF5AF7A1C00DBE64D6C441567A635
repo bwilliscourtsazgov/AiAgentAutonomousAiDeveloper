@@ -1,6 +1,6 @@
-from pathlib import Path
+﻿from pathlib import Path
 
-from src.common.config import coder_log_dir, coder_paths, qa_paths
+from src.common.config import coder_paths, qa_paths
 
 
 def test_coder_paths_uses_ai_root(tmp_path: Path) -> None:
@@ -16,7 +16,3 @@ def test_qa_paths_uses_ai_root(tmp_path: Path) -> None:
     paths = qa_paths(tmp_path)
 
     assert paths.in_dir == tmp_path / "AIAgentQA" / "IN"
-
-
-def test_coder_log_dir_uses_ai_root(tmp_path: Path) -> None:
-    assert coder_log_dir(tmp_path) == tmp_path / "AIAgentCoder" / "Log"

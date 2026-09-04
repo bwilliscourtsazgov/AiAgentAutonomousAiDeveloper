@@ -1,0 +1,10 @@
+﻿from pathlib import Path
+
+from src.aia_qa.workflow import process_qa_instruction
+
+
+def test_process_qa_instruction_reads_markdown(tmp_path: Path) -> None:
+    qa = tmp_path / "qa.md"
+    qa.write_text("Run tests", encoding="utf-8")
+
+    assert process_qa_instruction(qa) == "Run tests"
