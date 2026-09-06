@@ -2,6 +2,7 @@ from pathlib import Path
 import subprocess
 from datetime import datetime, timezone
 import re
+from urllib.parse import urlparse
 
 
 def run_git(repo_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -11,6 +12,45 @@ def run_git(repo_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
         text=True,
         check=True,
         capture_output=True,
+    )
+
+
+def run_gh(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["gh", *args],
+        cwd=cwd,
+        text=True,
+        check=True,
+        capture_output=True,
+    )
+
+
+def github_repository_name(repo_url: str) -> str:
+    normalized = repo_url.removesuffix(".git")
+    if normalized.startswith("git@github.com:"):
+        return normalized.removeprefix("git@github.com:")
+
+    parsed = urlparse(normalized)
+    if parsed.hostname != "github.com":
+        raise ValueError("repo_url must point to github.com when create_remote is true.")
+    return parsed.path.strip("/")
+
+
+def create_github_repository(repo_path: Path, repo_url: str, visibility: str = "private") -> None:
+    repository_name = github_repository_name(repo_url)
+    if not repository_name or "/" not in repository_name:
+        raise ValueError("repo_url must include a GitHub owner and repository name.")
+
+    run_gh(
+        "repo",
+        "create",
+        repository_name,
+        f"--{visibility}",
+        "--source",
+        str(repo_path),
+        "--remote",
+        "origin",
+        "--push",
     )
 
 
@@ -57,20 +97,37 @@ def is_git_repository(path: Path) -> bool:
     return (path / ".git").exists()
 
 
-def ensure_repo_ready(local_path: Path, repo_url: str | None = None, branch: str | None = None) -> None:
+def ensure_repo_ready(
+    local_path: Path,
+    repo_url: str | None = None,
+    branch: str | None = None,
+    create_remote: bool = False,
+    visibility: str = "private",
+) -> None:
+    remote_created = False
     if not local_path.exists():
         local_path.parent.mkdir(parents=True, exist_ok=True)
-        if repo_url:
+        if repo_url and not create_remote:
             run_git_global("clone", repo_url, str(local_path))
         else:
             local_path.mkdir(parents=True, exist_ok=True)
-            run_git_global("init", cwd=local_path)
+            run_git_global("init", "-b", "main", cwd=local_path)
 
     if not is_git_repository(local_path):
-        run_git_global("init", cwd=local_path)
+        run_git_global("init", "-b", "main", cwd=local_path)
 
-    if repo_url and _has_remote(local_path, "origin"):
-        run_git(local_path, "pull", "origin", branch or "main")
+    if create_remote and repo_url and not _has_commits(local_path):
+        run_git(local_path, "checkout", "-B", "main")
+        run_git(local_path, "commit", "--allow-empty", "-m", "chore: initialize repository")
+
+    if create_remote and repo_url and not _has_remote(local_path, "origin"):
+        create_github_repository(local_path, repo_url, visibility)
+        remote_created = True
+
+    base_branch = branch or "main"
+    if repo_url and _has_remote(local_path, "origin") and not remote_created:
+        if remote_branch_exists(local_path, "origin", base_branch):
+            run_git(local_path, "pull", "origin", base_branch)
 
     if branch:
         checkout_or_create_branch(local_path, branch)
@@ -90,3 +147,24 @@ def _has_remote(repo_path: Path, remote_name: str) -> bool:
         return False
     remotes = {line.strip() for line in result.stdout.splitlines() if line.strip()}
     return remote_name in remotes
+
+
+def remote_branch_exists(repo_path: Path, remote_name: str, branch_name: str) -> bool:
+    try:
+        run_git(repo_path, "ls-remote", "--exit-code", "--heads", remote_name, branch_name)
+    except subprocess.CalledProcessError as exc:
+        if exc.returncode == 2:
+            return False
+        raise RuntimeError(
+            f"Unable to query remote branch '{remote_name}/{branch_name}'. "
+            "Check GitHub authentication and repository access."
+        ) from exc
+    return True
+
+
+def _has_commits(repo_path: Path) -> bool:
+    try:
+        run_git(repo_path, "rev-parse", "--verify", "HEAD")
+    except subprocess.CalledProcessError:
+        return False
+    return True

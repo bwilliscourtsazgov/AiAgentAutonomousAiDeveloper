@@ -1,5 +1,8 @@
 from dataclasses import dataclass
+import os
 from pathlib import Path
+
+from src.common.models import AISettings
 
 
 @dataclass(slots=True)
@@ -43,3 +46,44 @@ def qa_paths(ai_root: Path | None = None) -> AgentPaths:
 
 def ai_root_from_agent_paths(paths: AgentPaths) -> Path:
     return paths.in_dir.parents[1]
+
+
+def load_ai_settings(environ: dict[str, str] | None = None) -> AISettings:
+    values = environ or os.environ
+    backend = values.get("AI_BACKEND", "").strip().lower()
+    if backend not in {"openai", "azure"}:
+        raise ValueError("AI_BACKEND must be either 'openai' or 'azure'.")
+
+    if backend == "openai":
+        api_key = values.get("OPENAI_API_KEY", "").strip()
+        model = values.get("OPENAI_MODEL", "").strip()
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY is required when AI_BACKEND=openai.")
+        if not model:
+            raise ValueError("OPENAI_MODEL is required when AI_BACKEND=openai.")
+        return AISettings(backend=backend, api_key=api_key, model=model)
+
+    api_key = values.get("AZURE_OPENAI_API_KEY", "").strip()
+    endpoint = values.get("AZURE_OPENAI_ENDPOINT", "").strip()
+    api_version = values.get("AZURE_OPENAI_API_VERSION", "").strip()
+    deployment = values.get("AZURE_OPENAI_DEPLOYMENT", "").strip()
+    missing = [
+        name
+        for name, value in {
+            "AZURE_OPENAI_API_KEY": api_key,
+            "AZURE_OPENAI_ENDPOINT": endpoint,
+            "AZURE_OPENAI_API_VERSION": api_version,
+            "AZURE_OPENAI_DEPLOYMENT": deployment,
+        }.items()
+        if not value
+    ]
+    if missing:
+        raise ValueError(f"Missing Azure OpenAI configuration: {', '.join(missing)}.")
+    return AISettings(
+        backend=backend,
+        api_key=api_key,
+        model=deployment,
+        endpoint=endpoint,
+        api_version=api_version,
+        deployment=deployment,
+    )

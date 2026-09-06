@@ -1,8 +1,11 @@
 from dataclasses import dataclass
+import os
 from pathlib import Path
 
 from src.aia_coder.markdown_parser import parse_instruction
+from src.aia_coder.copilot_client import CopilotClient
 from src.aia_coder.qa_instruction_writer import write_qa_instruction
+from src.aia_coder.task_executor import TaskExecutor
 from src.common.activity_log import append_event
 from src.common.config import AgentPaths, ai_root_from_agent_paths
 from src.common.fs_utils import ensure_agent_dirs, move_to_dir
@@ -65,7 +68,13 @@ def process_instruction_file(
     try:
         parsed = parse_instruction(processing_file)
         repo_path = parsed.repo.local_path
-        ensure_repo_ready(repo_path, parsed.repo.repo_url, parsed.repo.branch)
+        ensure_repo_ready(
+            repo_path,
+            parsed.repo.repo_url,
+            parsed.repo.branch,
+            parsed.repo.create_remote,
+            parsed.repo.visibility,
+        )
         append_event(
             ai_root,
             "AIAgentCoder",
@@ -83,6 +92,17 @@ def process_instruction_file(
             "CHECKOUT_NEW_BRANCH",
             {"branch": branch_name},
         )
+        if os.environ.get("AI_BACKEND"):
+            task = CopilotClient().ask_for_task(parsed.body)
+            TaskExecutor().apply(repo_path, task)
+            append_event(
+                ai_root,
+                "AIAgentCoder",
+                "ai",
+                instruction_name,
+                "TASK_APPLIED",
+                {"summary": task.summary, "changes": len(task.changes)},
+            )
         qa_output = qa_in_dir / f"{processing_file.stem}_qa.md"
         process_instruction(processing_file.name, parsed.body, qa_output)
         append_event(

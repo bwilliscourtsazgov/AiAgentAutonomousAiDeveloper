@@ -3,7 +3,7 @@ from pathlib import Path
 from src.common.models import ParsedInstruction, RepoSettings
 
 
-_ALLOWED_REPO_KEYS = {"local_path", "repo_url", "branch"}
+_ALLOWED_REPO_KEYS = {"local_path", "repo_url", "branch", "create_remote", "visibility"}
 
 
 def read_instruction(markdown_file: Path) -> str:
@@ -21,6 +21,8 @@ def parse_instruction(markdown_file: Path) -> ParsedInstruction:
         local_path=Path(local_path).expanduser(),
         repo_url=metadata.get("repo_url"),
         branch=metadata.get("branch"),
+        create_remote=_parse_bool(metadata.get("create_remote", "false")),
+        visibility=metadata.get("visibility", "private").lower(),
     )
     return ParsedInstruction(repo=repo, body=body)
 
@@ -45,6 +47,21 @@ def _validate_instruction_metadata(metadata: dict[str, str]) -> None:
     branch = metadata.get("branch")
     if branch is not None and not branch.strip():
         raise ValueError("If provided, 'branch' must be non-empty.")
+
+    create_remote = metadata.get("create_remote", "false").lower()
+    if create_remote not in {"true", "false"}:
+        raise ValueError("'create_remote' must be true or false.")
+
+    visibility = metadata.get("visibility", "private").lower()
+    if visibility not in {"private", "public", "internal"}:
+        raise ValueError("'visibility' must be private, public, or internal.")
+
+    if create_remote == "true" and not repo_url:
+        raise ValueError("'repo_url' is required when 'create_remote' is true.")
+
+
+def _parse_bool(value: str) -> bool:
+    return value.lower() == "true"
 
 
 def _parse_yaml_front_matter(content: str) -> tuple[dict[str, str], str]:
