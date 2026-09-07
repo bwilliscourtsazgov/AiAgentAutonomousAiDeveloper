@@ -18,7 +18,15 @@ class CopilotClient:
         response = self._client.chat.completions.create(
             model=self.settings.model,
             messages=[
-                {"role": "system", "content": "Return only JSON with summary, changes, and validation_commands."},
+                {
+                    "role": "system",
+                    "content": (
+                        "Return only JSON matching this schema: "
+                        "{summary: string, changes: [{operation: 'create'|'update'|'delete', "
+                        "path: string, content: string|null}], validation_commands: string[]}. "
+                        "The changes value must be an array, never an object or string."
+                    ),
+                },
                 {"role": "user", "content": prompt},
             ],
             response_format={"type": "json_object"},
@@ -28,7 +36,14 @@ class CopilotClient:
     def ask_for_task(self, prompt: str) -> TaskResponse:
         try:
             payload = json.loads(self.ask(prompt))
-            changes = [FileChange(item["operation"], item["path"], item.get("content")) for item in payload.get("changes", [])]
+            raw_changes = payload.get("changes", [])
+            if not isinstance(raw_changes, list):
+                raise ValueError("changes must be a list of file change objects.")
+            changes = []
+            for item in raw_changes:
+                if not isinstance(item, dict):
+                    raise ValueError("Each change must be an object.")
+                changes.append(FileChange(item["operation"], item["path"], item.get("content")))
             commands = payload.get("validation_commands", [])
             if not isinstance(commands, list) or not all(isinstance(item, str) for item in commands):
                 raise ValueError("validation_commands must be a list of strings.")

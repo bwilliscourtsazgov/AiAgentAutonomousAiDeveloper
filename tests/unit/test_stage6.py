@@ -27,6 +27,13 @@ def test_client_parses_structured_response() -> None:
     assert result.changes[0].path == "a.txt"
 
 
+def test_client_rejects_non_list_changes() -> None:
+    client = CopilotClient(AISettings("openai", "key", "model"), client=None)
+    client.ask = lambda prompt: '{"summary":"done","changes":"none","validation_commands":[]}'
+    with pytest.raises(ValueError, match="changes must be a list"):
+        client.ask_for_task("task")
+
+
 def test_executor_applies_changes(tmp_path: Path) -> None:
     task = TaskResponse("done", [FileChange("create", "nested/a.txt", "hello")], [])
     TaskExecutor().apply(tmp_path, task)
